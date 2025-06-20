@@ -12,42 +12,62 @@ import matplotlib.pyplot as plt
 from fpdf import FPDF
 import base64
 import os
-
-# --- Model Import with Error Handling ---
-try:
-    from transformers import pipeline
-    MODEL_LOADED = True
-except ImportError:
-    st.warning("Transformers pipeline not available - running in limited mode")
-    MODEL_LOADED = False
+import time
+from typing import Optional
 
 # --- Streamlit Cloud Optimized Config ---
 MODEL_NAME = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"  # Lightweight for free tier
 CACHE_DIR = "/tmp/model_cache"  # Streamlit Cloud compatible cache
+MAX_RETRIES = 3  # For model loading retries
+RETRY_DELAY = 5  # Seconds between retries
 
 # Ensure cache directory exists
 os.makedirs(CACHE_DIR, exist_ok=True)
 
-# --- Load AI Model (Streamlit-Cloud Compatible) ---
+# --- Model Import with Robust Error Handling ---
+def safe_import_transformers() -> Optional[bool]:
+    """Safely import transformers with multiple fallback attempts"""
+    for attempt in range(MAX_RETRIES):
+        try:
+            from transformers import pipeline
+            return pipeline
+        except ImportError as e:
+            if attempt == MAX_RETRIES - 1:
+                st.warning(f"Transformers import failed after {MAX_RETRIES} attempts")
+                return None
+            time.sleep(RETRY_DELAY)
+    return None
+
+# Get the pipeline function if available
+pipeline = safe_import_transformers()
+MODEL_LOADED = pipeline is not None
+
+# --- Load AI Model with Retry Logic ---
 @st.cache_resource(ttl=3600)  # Cache for 1 hour
-def load_ai():
+def load_ai_model():
     if not MODEL_LOADED:
         return None
-    try:
-        return pipeline(
-            "text-generation",
-            model=MODEL_NAME,
-            device_map="auto",
-            model_kwargs={
-                "cache_dir": CACHE_DIR,
-                "torch_dtype": "auto"  # Better memory management
-            }
-        )
-    except Exception as e:
-        st.error(f"Model loading failed: {str(e)}")
-        return None
+    
+    for attempt in range(MAX_RETRIES):
+        try:
+            model = pipeline(
+                "text-generation",
+                model=MODEL_NAME,
+                device_map="auto",
+                model_kwargs={
+                    "cache_dir": CACHE_DIR,
+                    "torch_dtype": "auto"
+                }
+            )
+            st.success("AI model loaded successfully!")
+            return model
+        except Exception as e:
+            if attempt == MAX_RETRIES - 1:
+                st.error(f"Model loading failed after {MAX_RETRIES} attempts: {str(e)}")
+                return None
+            time.sleep(RETRY_DELAY * (attempt + 1))  # Exponential backoff
 
-text_gen = load_ai()
+text_gen = load_ai_model()
 
 # --- Mobile Optimized CSS ---
 st.markdown("""
@@ -57,11 +77,20 @@ st.markdown("""
     @media (min-width: 768px) {
         .stDownloadButton {width: auto;}
     }
+    /* Better error message styling */
+    .stAlert {padding: 1rem !important;}
+    /* Form submit button styling */
+    .stFormSubmitButton button {
+        background-color: #4CAF50 !important;
+        color: white !important;
+        font-weight: bold !important;
+    }
     </style>
 """, unsafe_allow_html=True)
 
 # --- PDF Generator ---
-def create_pdf(classification, analysis, chart_path=None):
+def create_pdf(classification: str, analysis: str, chart_path: Optional[str] = None) -> bytes:
+    """Generate PDF report with optional chart"""
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", size=12)
@@ -82,15 +111,17 @@ def create_pdf(classification, analysis, chart_path=None):
     # Add chart if available
     if chart_path and os.path.exists(chart_path):
         pdf.image(chart_path, x=10, w=180)
-        os.remove(chart_path)  # Cleanup temp file
     
     return pdf.output(dest='S').encode('latin1')
 
-# --- Your Existing Classification Logic ---
-granular_materials = ["A-1-a", "A-1-b", "A-3", "A-2-4", "A-2-5", "A-2-6", "A-2-7"]
-silty_clay_materials = ["A-4", "A-5", "A-6", "A-7"]
+# --- Soil Classification Logic ---
+GRANULAR_MATERIALS = ["A-1-a", "A-1-b", "A-3", "A-2-4", "A-2-5", "A-2-6", "A-2-7"]
+SILTY_CLAY_MATERIALS = ["A-4", "A-5", "A-6", "A-7"]
 
-def classify_soil(LL, PL, PI, pass_10, pass_40, pass_200, is_np):
+def classify_soil(LL: float, PL: float, PI: float, 
+                 pass_10: float, pass_40: float, pass_200: float, 
+                 is_np: bool) -> str:
+    """Classify soil according to AASHTO system"""
     if is_np:
         PI = 0
     if pass_10 <= 50 and pass_40 <= 30 and pass_200 <= 15 and PI <= 6:
@@ -118,10 +149,12 @@ def classify_soil(LL, PL, PI, pass_10, pass_40, pass_200, is_np):
     else:
         return "Invalid input or not classifiable"
 
-def classify_material_type(pass_200):
+def classify_material_type(pass_200: float) -> str:
+    """Determine if material is granular or silt-clay"""
     return "Granular Material" if pass_200 <= 35 else "Silt-Clay Material"
 
-def identify_constituents_from_classification(classification):
+def identify_constituents_from_classification(classification: str) -> str:
+    """Get material constituents based on classification"""
     if classification in ("A-1-a", "A-1-b"):
         return "Stone fragments, Gravel and Sand"
     elif classification == "A-3":
@@ -132,8 +165,7 @@ def identify_constituents_from_classification(classification):
         return "Silty soils"
     elif classification in ("A-6", "A-7"):
         return "Clayey soils"
-    else:
-        return "Unknown"
+    return "Unknown"
 
 # --- Streamlit UI ---
 with st.form("soil_form"):
@@ -141,18 +173,18 @@ with st.form("soil_form"):
     
     with cols[0]:
         st.subheader("Atterberg Limits")
-        LL = st.number_input("Liquid Limit (LL)", min_value=0)
-        PL = st.number_input("Plastic Limit (PL)", min_value=0)
+        LL = st.number_input("Liquid Limit (LL)", min_value=0, max_value=100, value=30)
+        PL = st.number_input("Plastic Limit (PL)", min_value=0, max_value=100, value=20)
         is_np = st.checkbox("Non-Plastic (N.P)")
-        PI = 0 if is_np else LL - PL
+        PI = 0 if is_np else max(0, LL - PL)  # Ensure PI isn't negative
         if not is_np:
             st.write(f"Plasticity Index (PI) = **{PI}**")
     
     with cols[1]:
         st.subheader("Sieve Analysis (%)")
-        pass_10 = st.number_input("No. 10 (2.0mm)", 0, 100)
-        pass_40 = st.number_input("No. 40 (0.425mm)", 0, 100)
-        pass_200 = st.number_input("No. 200 (0.075mm)", 0, 100)
+        pass_10 = st.number_input("No. 10 (2.0mm)", 0, 100, 50)
+        pass_40 = st.number_input("No. 40 (0.425mm)", 0, 100, 30)
+        pass_200 = st.number_input("No. 200 (0.075mm)", 0, 100, 15)
 
     submitted = st.form_submit_button("Classify Soil")
 
@@ -165,16 +197,17 @@ if submitted:
     st.success(f"**Classification:** {classification}")
     st.info(f"**Material Type:** {mat_type}")
     
-    # --- AI Analysis (Fallback if model fails) ---
-    ai_text = "AI analysis unavailable - check deployment logs"
+    # --- AI Analysis ---
+    ai_text = f"Standard properties for {classification}: {constituents}"
     if text_gen:
         with st.spinner("Generating AI insights..."):
             try:
-                prompt = f"Explain AASHTO {classification} in 50 words for engineers: key properties, uses, and limitations."
-                ai_text = text_gen(prompt, max_length=150)[0]['generated_text']
+                prompt = f"""Explain AASHTO {classification} soil classification in 50 words for civil engineers. 
+                Include: key properties, typical uses in construction, and limitations."""
+                result = text_gen(prompt, max_length=150, do_sample=True, temperature=0.7)
+                ai_text = result[0]['generated_text']
             except Exception as e:
                 st.warning(f"AI analysis failed: {str(e)}")
-                ai_text = f"Standard properties for {classification}: {constituents}"
     
     with st.expander("🧠 AI Analysis", expanded=True):
         st.write(ai_text)
@@ -183,9 +216,13 @@ if submitted:
     chart_path = None
     try:
         chart_path = "sieves.png"
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(figsize=(8, 4))
         ax.bar(['No.10', 'No.40', 'No.200'], [pass_10, pass_40, pass_200], color='teal')
-        plt.savefig(chart_path, bbox_inches='tight')
+        ax.set_ylim(0, 100)
+        ax.set_ylabel('Percentage Passing (%)')
+        ax.set_title('Sieve Analysis Results')
+        plt.tight_layout()
+        plt.savefig(chart_path, dpi=100)
         plt.close()
         
         pdf = create_pdf(classification, ai_text, chart_path)
@@ -201,11 +238,17 @@ if submitted:
         if chart_path and os.path.exists(chart_path):
             os.remove(chart_path)
 
-# --- Streamlit Cloud Specific Tips ---
+# --- Deployment Information ---
 with st.expander("ℹ️ Deployment Notes"):
-    st.markdown("""
+    st.markdown(f"""
     **For Streamlit Cloud:**
-    - Using lightweight TinyLlama model (fits 1GB RAM)
-    - Model cached in /tmp for faster reloads
-    - Fallback modes when AI unavailable
+    - Using lightweight {MODEL_NAME} model (fits free tier memory limits)
+    - Model cached in {CACHE_DIR} for faster reloads
+    - Robust error handling with {MAX_RETRIES} retry attempts
+    - Current status: {"✅ AI Model Loaded" if MODEL_LOADED else "⚠️ Running in limited mode"}
+    
+    **Tips:**
+    - If model fails to load, try refreshing the page
+    - For complex soils, the AI analysis provides additional insights
+    - All reports include the sieve analysis chart
     """)
