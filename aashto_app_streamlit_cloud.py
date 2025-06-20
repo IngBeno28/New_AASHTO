@@ -76,13 +76,51 @@ granular_materials = ["A-1-a", "A-1-b", "A-3", "A-2-4", "A-2-5", "A-2-6", "A-2-7
 silty_clay_materials = ["A-4", "A-5", "A-6", "A-7"]
 
 def classify_soil(LL, PL, PI, pass_10, pass_40, pass_200, is_np):
-    # ... [Keep your original function unchanged] ...
+  if is_np:
+        PI = 0
+    if pass_10 <= 50 and pass_40 <= 30 and pass_200 <= 15 and PI <= 6:
+        return "A-1-a"
+    elif pass_40 <= 50 and pass_200 <= 25 and PI <= 6:
+        return "A-1-b"
+    elif pass_40 >= 51 and pass_200 <= 10 and PI == 0:
+        return "A-3"
+    elif pass_200 <= 35 and LL <= 40 and PI <= 10:
+        return "A-2-4"
+    elif pass_200 <= 35 and LL >= 41 and PI <= 10:
+        return "A-2-5"
+    elif pass_200 <= 35 and LL <= 40 and PI >= 11:
+        return "A-2-6"
+    elif pass_200 <= 35 and LL >= 41 and PI >= 11:
+        return "A-2-7"
+    elif pass_200 >= 36 and LL <= 40 and PI <= 10:
+        return "A-4"
+    elif pass_200 >= 36 and LL >= 41 and PI <= 10:
+        return "A-5"
+    elif pass_200 >= 36 and LL <= 40 and PI >= 11:
+        return "A-6"
+    elif pass_200 >= 36 and LL >= 41 and PI >= 11:
+        return "A-7"
+    else:
+        return "Invalid input or not classifiable"
+
 
 def classify_material_type(pass_200):
-    # ... [Keep original] ...
+ return "Granular Material" if pass_200 <= 35 else "Silt-Clay Material"
 
 def identify_constituents_from_classification(classification):
-    # ... [Keep original] ...
+    if classification in ("A-1-a", "A-1-b"):
+        return "Stone fragments, Gravel and Sand"
+    elif classification == "A-3":
+        return "Fine sand"
+    elif classification in ("A-2-4", "A-2-5", "A-2-6", "A-2-7"):
+        return "Silty or Clayey Gravel and Sand"
+    elif classification in ("A-4", "A-5"):
+        return "Silty soils"
+    elif classification in ("A-6", "A-7"):
+        return "Clayey soils"
+    else:
+        return "Unknown"
+
 
 # --- Streamlit UI ---
 with st.form("soil_form"):
