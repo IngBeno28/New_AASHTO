@@ -1,10 +1,25 @@
+# --- Streamlit Config MUST BE FIRST ---
 import streamlit as st
+st.set_page_config(
+    page_title="AASHTO Classifier",
+    layout="centered",
+    initial_sidebar_state="collapsed"
+)
+
+# --- Imports ---
 import pandas as pd
 import matplotlib.pyplot as plt
-from transformers import pipeline
 from fpdf import FPDF
 import base64
 import os
+
+# --- Model Import with Error Handling ---
+try:
+    from transformers import pipeline
+    MODEL_LOADED = True
+except ImportError:
+    st.warning("Transformers pipeline not available - running in limited mode")
+    MODEL_LOADED = False
 
 # --- Streamlit Cloud Optimized Config ---
 MODEL_NAME = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"  # Lightweight for free tier
@@ -16,18 +31,34 @@ os.makedirs(CACHE_DIR, exist_ok=True)
 # --- Load AI Model (Streamlit-Cloud Compatible) ---
 @st.cache_resource(ttl=3600)  # Cache for 1 hour
 def load_ai():
-    return pipeline(
-        "text-generation",
-        model=MODEL_NAME,
-        device_map="auto",
-        model_kwargs={"cache_dir": CACHE_DIR}  # Reduces memory spikes
-    )
+    if not MODEL_LOADED:
+        return None
+    try:
+        return pipeline(
+            "text-generation",
+            model=MODEL_NAME,
+            device_map="auto",
+            model_kwargs={
+                "cache_dir": CACHE_DIR,
+                "torch_dtype": "auto"  # Better memory management
+            }
+        )
+    except Exception as e:
+        st.error(f"Model loading failed: {str(e)}")
+        return None
 
-try:
-    text_gen = load_ai()
-except Exception as e:
-    st.error(f"AI model failed to load: {str(e)}")
-    text_gen = None
+text_gen = load_ai()
+
+# --- Mobile Optimized CSS ---
+st.markdown("""
+    <style>
+    .stNumberInput, .stTextInput {width: 100% !important;}
+    .stDownloadButton {width: 100%;}
+    @media (min-width: 768px) {
+        .stDownloadButton {width: auto;}
+    }
+    </style>
+""", unsafe_allow_html=True)
 
 # --- PDF Generator ---
 def create_pdf(classification, analysis, chart_path=None):
@@ -54,22 +85,6 @@ def create_pdf(classification, analysis, chart_path=None):
         os.remove(chart_path)  # Cleanup temp file
     
     return pdf.output(dest='S').encode('latin1')
-
-# --- Mobile Optimized UI ---
-st.set_page_config(
-    page_title="AASHTO Classifier",
-    layout="centered",
-    initial_sidebar_state="collapsed"
-)
-st.markdown("""
-    <style>
-    .stNumberInput, .stTextInput {width: 100% !important;}
-    .stDownloadButton {width: 100%;}
-    @media (min-width: 768px) {
-        .stDownloadButton {width: auto;}
-    }
-    </style>
-""", unsafe_allow_html=True)
 
 # --- Your Existing Classification Logic ---
 granular_materials = ["A-1-a", "A-1-b", "A-3", "A-2-4", "A-2-5", "A-2-6", "A-2-7"]
@@ -103,9 +118,8 @@ def classify_soil(LL, PL, PI, pass_10, pass_40, pass_200, is_np):
     else:
         return "Invalid input or not classifiable"
 
-
 def classify_material_type(pass_200):
- return "Granular Material" if pass_200 <= 35 else "Silt-Clay Material"
+    return "Granular Material" if pass_200 <= 35 else "Silt-Clay Material"
 
 def identify_constituents_from_classification(classification):
     if classification in ("A-1-a", "A-1-b"):
@@ -120,7 +134,6 @@ def identify_constituents_from_classification(classification):
         return "Clayey soils"
     else:
         return "Unknown"
-
 
 # --- Streamlit UI ---
 with st.form("soil_form"):
@@ -153,14 +166,15 @@ if submitted:
     st.info(f"**Material Type:** {mat_type}")
     
     # --- AI Analysis (Fallback if model fails) ---
-    ai_text = "Enable AI to get analysis"
+    ai_text = "AI analysis unavailable - check deployment logs"
     if text_gen:
         with st.spinner("Generating AI insights..."):
             try:
                 prompt = f"Explain AASHTO {classification} in 50 words for engineers: key properties, uses, and limitations."
                 ai_text = text_gen(prompt, max_length=150)[0]['generated_text']
             except Exception as e:
-                st.warning(f"AI offline: {str(e)}")
+                st.warning(f"AI analysis failed: {str(e)}")
+                ai_text = f"Standard properties for {classification}: {constituents}"
     
     with st.expander("🧠 AI Analysis", expanded=True):
         st.write(ai_text)
@@ -191,8 +205,7 @@ if submitted:
 with st.expander("ℹ️ Deployment Notes"):
     st.markdown("""
     **For Streamlit Cloud:**
-    1. Add `transformers`, `torch`, `fpdf`, `matplotlib` to `requirements.txt`
-    2. Set `CACHE_DIR` to `/tmp` (writable in cloud)
-    3. Model will auto-download on first run (~2 minutes)
-    4. Free tier has **1GB RAM** - TinyLlama fits perfectly
+    - Using lightweight TinyLlama model (fits 1GB RAM)
+    - Model cached in /tmp for faster reloads
+    - Fallback modes when AI unavailable
     """)
