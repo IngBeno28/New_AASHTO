@@ -76,7 +76,7 @@ granular_materials = ["A-1-a", "A-1-b", "A-3", "A-2-4", "A-2-5", "A-2-6", "A-2-7
 silty_clay_materials = ["A-4", "A-5", "A-6", "A-7"]
 
 def classify_soil(LL, PL, PI, pass_10, pass_40, pass_200, is_np):
-  if is_np:
+    if is_np:
         PI = 0
     if pass_10 <= 50 and pass_40 <= 30 and pass_200 <= 15 and PI <= 6:
         return "A-1-a"
