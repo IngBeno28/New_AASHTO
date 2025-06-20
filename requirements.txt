@@ -1,5 +1,6 @@
 streamlit>=1.35.0
 pandas>=1.5.3
 transformers>=4.30.0
+torch>=2.0.0
 fpdf>=1.7.2
 matplotlib>=3.8.0
