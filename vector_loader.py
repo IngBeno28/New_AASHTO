@@ -121,6 +121,10 @@ for group in groups:
         docs.append(Document(page_content=match.group().strip()))
     else:
         print(f"❌ Failed to extract: {group}")
+        print("\\n✅ Extracted groups:")
+    for i, doc in enumerate(docs):
+    print(f"{i+1}. {doc.page_content.splitlines()[0]}")
+
 
 print("📄 Number of document chunks created:", len(docs))
 print("🧪 Preview of first heading:\\n", docs[0].page_content[:100])
