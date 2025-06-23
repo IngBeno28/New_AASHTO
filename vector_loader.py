@@ -107,10 +107,21 @@ AASHTO_KB = \"\"\"### A-1-a
 \"\"\"
 
 # Prepare documents using regex split
-sections = re.split(r'(?=### A-)', AASHTO_KB.strip())
+sections = re.split(r'(###\s+A-\d(?:-\d)?)', AASHTO_KB)
 docs = [Document(page_content=section.strip()) for section in sections if section.strip()]
 print("📄 Number of document chunks created:", len(docs))
 print("🔍 Sample chunk preview:", docs[0].page_content[:100])
+
+# Rebuild by joining heading and body
+docs = []
+for i in range(1, len(sections), 2):  # step by 2 to get heading and content
+    heading = sections[i].strip()
+    content = sections[i + 1].strip()
+    full_doc = f"{heading}\n{content}"
+    docs.append(Document(page_content=full_doc))
+print("📄 Number of document chunks created:", len(docs))
+print("🔍 Preview of first heading:\n", docs[0].page_content[:100])
+
 
 # Load embedding model
 embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
