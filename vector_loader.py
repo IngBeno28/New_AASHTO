@@ -122,8 +122,8 @@ for group in groups:
     else:
         print(f"❌ Failed to extract: {group}")
         print("\\n✅ Extracted groups:")
-    for i, doc in enumerate(docs):
-    print(f"{i+1}. {doc.page_content.splitlines()[0]}")
+        for i, doc in enumerate(docs):
+        print(f"{i+1}. {doc.page_content.splitlines()[0]}")
 
 
 print("📄 Number of document chunks created:", len(docs))
