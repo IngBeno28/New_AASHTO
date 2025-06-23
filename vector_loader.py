@@ -27,5 +27,5 @@ vectorstore = Chroma.from_documents(
 )
 print("✅ AASHTO vector store is loaded.")
 print("📁 Collection Name:", vectorstore._collection.name)
-print("📦 Stored Docs Count:", vectorstore._collection.count())
+print("📦 Number of stored documents:", vectorstore._collection.count())
 
