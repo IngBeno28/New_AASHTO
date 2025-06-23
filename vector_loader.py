@@ -1,3 +1,5 @@
+# Saving the updated file with the bulletproof fix implemented by the user
+final_vector_loader = """
 print("🚀 Script started...")
 import os
 import re
@@ -106,22 +108,12 @@ AASHTO_KB = \"\"\"### A-1-a
 - **Limitations**: Severe expansion, shrinkage, poor strength
 \"\"\"
 
-# Prepare documents using regex split
-sections = re.split(r'(###\s+A-\d(?:-\d)?)', AASHTO_KB)
-docs = [Document(page_content=section.strip()) for section in sections if section.strip()]
-print("📄 Number of document chunks created:", len(docs))
-print("🔍 Sample chunk preview:", docs[0].page_content[:100])
+# Use regex to extract each full section starting with headings
+matches = re.findall(r"(### A-\\d(?:-\\d)?[\\s\\S]*?)(?=### A-\\d(?:-\\d)?|\\Z)", AASHTO_KB.strip())
+docs = [Document(page_content=match.strip()) for match in matches]
 
-# Rebuild by joining heading and body
-docs = []
-for i in range(1, len(sections), 2):  # step by 2 to get heading and content
-    heading = sections[i].strip()
-    content = sections[i + 1].strip()
-    full_doc = f"{heading}\n{content}"
-    docs.append(Document(page_content=full_doc))
 print("📄 Number of document chunks created:", len(docs))
-print("🔍 Preview of first heading:\n", docs[0].page_content[:100])
-
+print("🔍 Preview of first heading:\\n", docs[0].page_content[:100])
 
 # Load embedding model
 embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
@@ -137,9 +129,8 @@ print("📦 Number of stored documents:", vectorstore._collection.count())
 print("✅ Vector store fully prepared.")
 """
 
-# Save updated version
-file_path = "/mnt/data/vector_loader_updated.py"
-with open(file_path, "w") as f:
-    f.write(updated_vector_loader.strip())
+final_path = "/mnt/data/vector_loader_final.py"
+with open(final_path, "w") as f:
+    f.write(final_vector_loader.strip())
 
-file_path
+final_path
