@@ -3,7 +3,7 @@ import os
 from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.schema import Document
-
+print("📁 Currently running:", os.path.abspath(__file__))
 print("📁 Current Working Directory:", os.getcwd())
 
 # Load your AASHTO soil knowledge base
@@ -27,3 +27,5 @@ print("📦 Number of stored documents:", vectorstore._collection.count())
 docs_count = vectorstore._collection.count()
 print("📦 Stored Docs Count:", docs_count)
 print("✅ Vector store loaded.")
+
+
