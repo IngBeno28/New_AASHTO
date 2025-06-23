@@ -8,7 +8,11 @@ torch>=2.3.0
 langchain==0.1.20
 langchain-community==0.0.38
 chromadb==0.4.24
-sentence-transformers
-
-
+langchain==0.1.20
+langchain-community==0.0.38
+chromadb==0.4.24
+sentence-transformers==2.2.2
+#transformers==4.39.3
+#torch>=2.1.0
+#streamlit>=1.32.0
 
