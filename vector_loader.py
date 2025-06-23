@@ -18,3 +18,4 @@ embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-Mi
 persist_dir = "aashto_vectorstore"
 vectorstore = Chroma.from_documents(documents=docs, embedding=embedding_model, persist_directory=persist_dir)
 vectorstore.persist()
+print("✅ Vector store built and saved to 'aashto_vectorstore/'")
