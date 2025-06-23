@@ -1,14 +1,15 @@
 print("🚀 Script started...")
 import os
+import re
 from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.schema import Document
+
 print("📁 Currently running:", os.path.abspath(__file__))
 print("📁 Current Working Directory:", os.getcwd())
 
 # Load your AASHTO soil knowledge base
-AASHTO_KB = """... (AASHTO_KB = """
-### A-1-a
+AASHTO_KB = \"\"\"### A-1-a
 - **Type**: Well-graded gravel and sand with little to no fines
 - **Plasticity Index**: ≤ 6
 - **Liquid Limit**: ≤ 40
@@ -103,26 +104,31 @@ AASHTO_KB = """... (AASHTO_KB = """
 - **Typical Use**: Not recommended for structural support
 - **Strength**: Very low
 - **Limitations**: Severe expansion, shrinkage, poor strength
-"""
-) ..."""
+\"\"\"
 
-# Prepare documents
-sections = AASHTO_KB.split("### ")
-docs = [Document(page_content=f"### {section.strip()}") for section in sections if section.strip()]
+# Prepare documents using regex split
+sections = re.split(r'(?=^### )', AASHTO_KB.strip(), flags=re.MULTILINE)
+docs = [Document(page_content=section.strip()) for section in sections if section.strip()]
+print("📄 Number of document chunks created:", len(docs))
+print("🔍 Sample chunk preview:", docs[0].page_content[:100])
 
 # Load embedding model
 embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
-# Create vector store (no need to call .persist() explicitly in Chroma ≥0.4.0)
+# Create vector store
 persist_dir = "aashto_vectorstore"
 vectorstore = Chroma.from_documents(documents=docs, embedding=embedding_model, persist_directory=persist_dir)
 
-# Debug: Show results
+# Debug output
 print("✅ AASHTO vector store is loaded.")
 print("📁 Collection Name:", vectorstore._collection.name)
 print("📦 Number of stored documents:", vectorstore._collection.count())
-docs_count = vectorstore._collection.count()
-print("📦 Stored Docs Count:", docs_count)
-print("✅ Vector store loaded.")
+print("✅ Vector store fully prepared.")
+"""
 
+# Save updated version
+file_path = "/mnt/data/vector_loader_updated.py"
+with open(file_path, "w") as f:
+    f.write(updated_vector_loader.strip())
 
+file_path
