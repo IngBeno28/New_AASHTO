@@ -1,4 +1,5 @@
-# --- Streamlit Config MUST BE FIRST ---
+import sys
+print("🧠 Running Python from:", sys.executable)
 import streamlit as st
 st.set_page_config(
     page_title="AASHTO Classifier",
