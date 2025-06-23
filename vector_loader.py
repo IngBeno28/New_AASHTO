@@ -107,7 +107,7 @@ AASHTO_KB = \"\"\"### A-1-a
 \"\"\"
 
 # Prepare documents using regex split
-sections = re.split(r'(?=^### )', AASHTO_KB.strip(), flags=re.MULTILINE)
+sections = re.split(r'(?=### A-)', AASHTO_KB.strip())
 docs = [Document(page_content=section.strip()) for section in sections if section.strip()]
 print("📄 Number of document chunks created:", len(docs))
 print("🔍 Sample chunk preview:", docs[0].page_content[:100])
