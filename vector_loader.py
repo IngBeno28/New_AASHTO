@@ -1,4 +1,5 @@
-
+import os
+print("Current Working Directory:", os.getcwd())
 from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.schema import Document
