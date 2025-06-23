@@ -1,5 +1,3 @@
-# Saving the updated file with the bulletproof fix implemented by the user
-final_vector_loader = """
 print("🚀 Script started...")
 import os
 import re
@@ -108,12 +106,24 @@ AASHTO_KB = \"\"\"### A-1-a
 - **Limitations**: Severe expansion, shrinkage, poor strength
 \"\"\"
 
-# Use regex to extract each full section starting with headings
-matches = re.findall(r"(### A-\\d(?:-\\d)?[\\s\\S]*?)(?=### A-\\d(?:-\\d)?|\\Z)", AASHTO_KB.strip())
-docs = [Document(page_content=match.strip()) for match in matches]
+
+# Final bulletproof group-by-group extraction
+groups = [
+    "A-1-a", "A-1-b", "A-2-4", "A-2-5", "A-2-6", "A-2-7",
+    "A-3", "A-4", "A-5", "A-6", "A-7-5", "A-7-6"
+]
+
+docs = []
+for group in groups:
+    pattern = rf"### {group}[\\s\\S]*?(?=### A-|\\Z)"
+    match = re.search(pattern, AASHTO_KB)
+    if match:
+        docs.append(Document(page_content=match.group().strip()))
+    else:
+        print(f"❌ Failed to extract: {group}")
 
 print("📄 Number of document chunks created:", len(docs))
-print("🔍 Preview of first heading:\\n", docs[0].page_content[:100])
+print("🧪 Preview of first heading:\\n", docs[0].page_content[:100])
 
 # Load embedding model
 embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
@@ -129,7 +139,7 @@ print("📦 Number of stored documents:", vectorstore._collection.count())
 print("✅ Vector store fully prepared.")
 """
 
-final_path = "/mnt/data/vector_loader_final.py"
+final_path = "/mnt/data/vector_loader_final_fixed.py"
 with open(final_path, "w") as f:
     f.write(final_vector_loader.strip())
 
